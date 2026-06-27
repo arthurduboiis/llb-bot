@@ -1,0 +1,22 @@
+{
+  "name": "llb-payout-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord de gestion de payouts et banque de guilde pour Albion Online",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js .env.prod",
+    "start:dev": "node index.js .env.dev",
+    "deploy": "node deploy-commands.js .env.prod",
+    "deploy:dev": "node deploy-commands.js .env.dev"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  },
+  "engines": {
+    "node": "24.18.0"
+  }
+}
