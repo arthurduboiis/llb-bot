@@ -299,7 +299,7 @@ async function handleGuildWithdrawModalSubmit(interaction) {
 // Rafraîchir le dashboard
 // ----------------------------------------------------------------------------
 async function handleRefreshButton(interaction) {
-  await interaction.update({ embeds: [bankDashboardEmbed()] });
+  await interaction.update({ embeds: [await bankDashboardEmbed()] });
 }
 
 async function refreshAllDashboards(interaction) {
@@ -319,7 +319,9 @@ async function refreshAllDashboards(interaction) {
         m.embeds[0]?.title?.includes('BANQUE'),
     );
     if (dashboardMsg) {
-      await dashboardMsg.edit({ embeds: [bankDashboardEmbed()] });
+      await dashboardMsg.edit({
+        embeds: [await bankDashboardEmbed()],
+      });
     }
   } catch {
     // pas grave si ça échoue, le bouton "Dashboard" permet toujours de rafraîchir manuellement
