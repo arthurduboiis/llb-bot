@@ -16,7 +16,7 @@ const { isOfficer } = require('../utils/permissions');
 // Mon solde
 // ----------------------------------------------------------------------------
 async function handleMyBalance(interaction) {
-  const balance = db.getBalance(interaction.user.id);
+  const balance = await db.getBalance(interaction.user.id);
   await interaction.reply({
     content: `💰 Ton solde actuel : **${formatAmount(balance)}**`,
     ephemeral: true,
@@ -27,7 +27,7 @@ async function handleMyBalance(interaction) {
 // Retrait perso -> modal montant -> crée une demande pending
 // ----------------------------------------------------------------------------
 async function handleWithdrawPersoButton(interaction) {
-  const balance = db.getBalance(interaction.user.id);
+  const balance = await db.getBalance(interaction.user.id);
   if (balance <= 0) {
     return interaction.reply({
       content: "❌ Tu n'as aucun solde à retirer.",
@@ -56,7 +56,7 @@ async function handleWithdrawPersoButton(interaction) {
 async function handleWithdrawPersoModalSubmit(interaction) {
   const raw = interaction.fields.getTextInputValue('withdraw_amount');
   const amount = parseAmount(raw);
-  const balance = db.getBalance(interaction.user.id);
+  const balance = await db.getBalance(interaction.user.id);
 
   if (amount === null || amount <= 0) {
     return interaction.reply({
@@ -71,11 +71,11 @@ async function handleWithdrawPersoModalSubmit(interaction) {
     });
   }
 
-  const withdrawalId = db.createWithdrawal(
+  const withdrawalId = await db.createWithdrawal(
     interaction.user.id,
     amount,
   );
-  db.addToBalance(interaction.user.id, -amount);
+  await db.addToBalance(interaction.user.id, -amount);
 
   await interaction.reply({
     content: `✅ Demande de retrait de **${formatAmount(amount)}** envoyée. Un officier va te payer in-game.`,
@@ -130,7 +130,7 @@ async function handleMarkPaid(interaction, withdrawalId) {
       ephemeral: true,
     });
   }
-  const withdrawal = db.getWithdrawal(withdrawalId);
+  const withdrawal = await db.getWithdrawal(withdrawalId);
   if (!withdrawal || withdrawal.status !== 'pending') {
     return interaction.reply({
       content: "❌ Cette demande n'est plus en attente.",
@@ -138,8 +138,8 @@ async function handleMarkPaid(interaction, withdrawalId) {
     });
   }
 
-  db.markWithdrawalPaid(withdrawalId);
-  db.logTransaction({
+  await db.markWithdrawalPaid(withdrawalId);
+  await db.logTransaction({
     type: 'withdrawal',
     userId: withdrawal.user_id,
     amount: -withdrawal.amount,
@@ -160,7 +160,7 @@ async function handleCancelWithdrawal(interaction, withdrawalId) {
       ephemeral: true,
     });
   }
-  const withdrawal = db.getWithdrawal(withdrawalId);
+  const withdrawal = await db.getWithdrawal(withdrawalId);
   if (!withdrawal || withdrawal.status !== 'pending') {
     return interaction.reply({
       content: "❌ Cette demande n'est plus en attente.",
@@ -168,8 +168,8 @@ async function handleCancelWithdrawal(interaction, withdrawalId) {
     });
   }
 
-  db.markWithdrawalCancelled(withdrawalId);
-  db.addToBalance(withdrawal.user_id, withdrawal.amount); // on rembourse le solde
+  await db.markWithdrawalCancelled(withdrawalId);
+  await db.addToBalance(withdrawal.user_id, withdrawal.amount); // on rembourse le solde
 
   await interaction.update({
     content: `☑️ Retrait #${withdrawalId} annulé par <@${interaction.user.id}>, solde recrédité.`,
@@ -208,8 +208,8 @@ async function handleDepositModalSubmit(interaction) {
     });
   }
 
-  db.addToTreasury(amount);
-  db.logTransaction({
+  await db.addToTreasury(amount);
+  await db.logTransaction({
     type: 'deposit',
     userId: interaction.user.id,
     amount,
@@ -242,7 +242,7 @@ async function handleGuildWithdrawButton(interaction) {
         new TextInputBuilder()
           .setCustomId('guild_withdraw_amount')
           .setLabel(
-            `Montant (trésorerie: ${formatAmount(db.getTreasury())})`,
+            `Montant (trésorerie: ${formatAmount(await db.getTreasury())})`,
           )
           .setStyle(TextInputStyle.Short)
           .setRequired(true),
@@ -265,7 +265,7 @@ async function handleGuildWithdrawModalSubmit(interaction) {
   const reason =
     interaction.fields.getTextInputValue('guild_withdraw_reason') ||
     'Non précisé';
-  const treasury = db.getTreasury();
+  const treasury = await db.getTreasury();
 
   if (amount === null || amount <= 0) {
     return interaction.reply({
@@ -280,8 +280,8 @@ async function handleGuildWithdrawModalSubmit(interaction) {
     });
   }
 
-  db.addToTreasury(-amount);
-  db.logTransaction({
+  await db.addToTreasury(-amount);
+  await db.logTransaction({
     type: 'guild_withdrawal',
     userId: interaction.user.id,
     amount: -amount,
