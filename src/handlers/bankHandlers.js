@@ -71,11 +71,17 @@ async function handleWithdrawPersoModalSubmit(interaction) {
     });
   }
 
+  const success = await db.deductBalance(interaction.user.id, amount);
+  if (!success) {
+    return interaction.reply({
+      content: '❌ Solde insuffisant (déjà retiré ?)',
+      ephemeral: true,
+    });
+  }
   const withdrawalId = await db.createWithdrawal(
     interaction.user.id,
     amount,
   );
-  await db.addToBalance(interaction.user.id, -amount);
 
   await interaction.reply({
     content: `✅ Demande de retrait de **${formatAmount(amount)}** envoyée. Un officier va te payer in-game.`,
@@ -169,7 +175,13 @@ async function handleCancelWithdrawal(interaction, withdrawalId) {
   }
 
   await db.markWithdrawalCancelled(withdrawalId);
-  await db.addToBalance(withdrawal.user_id, withdrawal.amount); // on rembourse le solde
+  const success = await db.deductBalance(interaction.user.id, amount);
+  if (!success) {
+    return interaction.reply({
+      content: '❌ Solde insuffisant (déjà retiré ?)',
+      ephemeral: true,
+    });
+  }
 
   await interaction.update({
     content: `☑️ Retrait #${withdrawalId} annulé par <@${interaction.user.id}>, solde recrédité.`,

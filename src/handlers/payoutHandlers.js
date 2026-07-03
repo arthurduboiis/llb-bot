@@ -140,17 +140,15 @@ async function postSessionMessage(textChannel, sessionId) {
   });
 
   // On stocke l'id du message racine pour pouvoir le mettre à jour ensuite
-  textChannel.__sessionMessageId = msg.id; // (cache en mémoire, suffisant tant que le process ne redémarre pas)
+  await db.setSessionMessageId(sessionId, msg.id); // (cache en mémoire, suffisant tant que le process ne redémarre pas)
 }
 
 async function refreshSessionMessage(channel, sessionId) {
   const session = await db.getSession(sessionId);
   const participants = await db.getParticipants(sessionId);
-  if (!channel.__sessionMessageId) return;
+  if (!session?.message_id) return;
   try {
-    const msg = await channel.messages.fetch(
-      channel.__sessionMessageId,
-    );
+    const msg = await channel.messages.fetch(session.message_id);
     await msg.edit({
       embeds: [payoutSessionEmbed(session, participants)],
     });
@@ -495,7 +493,20 @@ async function finalizeSplit(
   for (const p of participants) {
     const amount = shares[p.user_id] || 0;
     await db.setParticipantShare(session.id, p.user_id, amount);
-    await db.addToBalance(p.user_id, amount);
+    const success = await db.deductBalance(
+      interaction.user.id,
+      amount,
+    );
+    if (!success) {
+      return interaction.reply({
+        content: '❌ Solde insuffisant (déjà retiré ?)',
+        ephemeral: true,
+      });
+    }
+    const withdrawalId = await db.createWithdrawal(
+      interaction.user.id,
+      amount,
+    );
     await db.logTransaction({
       type: 'payout_credit',
       userId: p.user_id,
@@ -519,7 +530,7 @@ async function finalizeSplit(
     type: 'payout_credit_summary',
     userId: session.leader_id,
     amount: session.net_amount,
-    description: `${session.type_label} - ${formatAmount(session.net_amount)} net il y a 0 jour`,
+    description: `${session.type_label} - ${formatAmount(session.net_amount)} net`,
   });
 
   await db.setSessionStatus(session.id, 'done');

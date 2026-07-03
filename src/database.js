@@ -29,7 +29,10 @@ const pool = new Pool({
 pool.on('error', (err) => {
   // Évite de crasher tout le process si Supabase coupe une connexion idle
   // (ça arrive sur le plan gratuit, notamment après une mise en pause du projet).
-  console.error('⚠️  Erreur sur une connexion PostgreSQL (pool) :', err.message);
+  console.error(
+    '⚠️  Erreur sur une connexion PostgreSQL (pool) :',
+    err.message,
+  );
 });
 
 // Petit helper : Postgres renvoie les BIGINT sous forme de string en JS (pour éviter
@@ -68,6 +71,7 @@ async function initDatabase() {
       status TEXT NOT NULL DEFAULT 'open',
       text_channel_id TEXT,
       voice_channel_id TEXT,
+      message_id TEXT,
       loot_amount BIGINT,
       net_amount BIGINT,
       split_mode TEXT,
@@ -96,6 +100,11 @@ async function initDatabase() {
   await pool.query(
     `INSERT INTO treasury (id, balance) VALUES (1, 0) ON CONFLICT (id) DO NOTHING`,
   );
+
+  await pool.query(
+    `ALTER TABLE payout_sessions ADD COLUMN IF NOT EXISTS message_id TEXT`,
+  );
+
   console.log('✅ Schéma PostgreSQL (Supabase) prêt.');
 }
 
@@ -118,12 +127,14 @@ async function getBalance(userId) {
   return n(res.rows[0].balance);
 }
 
-async function addToBalance(userId, amount) {
-  await ensurePlayer(userId);
-  await pool.query(
-    `UPDATE players SET balance = balance + $1 WHERE user_id = $2`,
+async function deductBalance(userId, amount) {
+  const res = await pool.query(
+    `UPDATE players SET balance = balance - $1
+     WHERE user_id = $2 AND balance >= $1
+     RETURNING balance`,
     [amount, userId],
   );
+  return res.rowCount > 0; // false si solde insuffisant au moment du UPDATE
 }
 
 async function getAllBalances() {
@@ -259,6 +270,13 @@ async function setSessionSplitMode(sessionId, mode) {
   );
 }
 
+async function setSessionMessageId(sessionId, messageId) {
+  await pool.query(
+    `UPDATE payout_sessions SET message_id = $1 WHERE id = $2`,
+    [messageId, sessionId],
+  );
+}
+
 // ----------------------------------------------------------------------------
 // PARTICIPANTS
 // ----------------------------------------------------------------------------
@@ -381,7 +399,7 @@ module.exports = {
   initDatabase,
   ensurePlayer,
   getBalance,
-  addToBalance,
+  deductBalance,
   getAllBalances,
   countPlayersWithBalance,
   getTreasury,
