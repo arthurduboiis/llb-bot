@@ -171,6 +171,14 @@ async function addToTreasury(amount) {
   );
 }
 
+async function addToBalance(userId, amount) {
+  await ensurePlayer(userId);
+  await pool.query(
+    `UPDATE players SET balance = balance + $1 WHERE user_id = $2`,
+    [amount, userId],
+  );
+}
+
 // ----------------------------------------------------------------------------
 // TRANSACTIONS (historique)
 // ----------------------------------------------------------------------------
@@ -419,6 +427,8 @@ module.exports = {
   getParticipants,
   setParticipantVoiceJoin,
   flushParticipantVoiceTime,
+  setSessionMessageId,
+  addToBalance,
   setParticipantShare,
   createWithdrawal,
   getWithdrawal,

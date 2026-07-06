@@ -493,20 +493,7 @@ async function finalizeSplit(
   for (const p of participants) {
     const amount = shares[p.user_id] || 0;
     await db.setParticipantShare(session.id, p.user_id, amount);
-    const success = await db.deductBalance(
-      interaction.user.id,
-      amount,
-    );
-    if (!success) {
-      return interaction.reply({
-        content: '❌ Solde insuffisant (déjà retiré ?)',
-        ephemeral: true,
-      });
-    }
-    const withdrawalId = await db.createWithdrawal(
-      interaction.user.id,
-      amount,
-    );
+    await db.addToBalance(p.user_id, amount);
     await db.logTransaction({
       type: 'payout_credit',
       userId: p.user_id,
